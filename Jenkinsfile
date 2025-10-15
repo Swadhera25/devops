@@ -2,24 +2,27 @@ pipeline {
     agent any
 
     environment {
-        // Your Docker Hub username/repository
-        DOCKER_IMAGE = "shivay2525/devops"
+        DOCKER_IMAGE = "shivay2525/devops"   // Docker Hub repo name
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
-                // Checkout from main branch
                 git branch: 'main', url: 'https://github.com/Swadhera25/devops.git'
+            }
+        }
+
+        stage('Build Java Application') {
+            steps {
+                bat 'mvn clean package -DskipTests'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build and tag with both 'latest' and the unique build number
-                    // Note the double quotes and ${...} for cross-platform compatibility
-                    bat "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} -t ${env.DOCKER_IMAGE}:latest ."
+                    // Build Docker image on Windows agent
+                    bat 'docker build -t %DOCKER_IMAGE%:latest .'
                 }
             }
         }
@@ -29,16 +32,11 @@ pipeline {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         // Login to Docker Hub
-                        bat "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+                        bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
                         
-                        // Push the image with the build number tag
+                        // Retry push in case of network issues
                         retry(3) {
-                            bat "docker push ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                        }
-
-                        // Push the 'latest' tag
-                        retry(3) {
-                            bat "docker push ${env.DOCKER_IMAGE}:latest"
+                            bat 'docker push %DOCKER_IMAGE%:latest'
                         }
                     }
                 }
@@ -53,10 +51,10 @@ pipeline {
             bat 'docker logout'
         }
         success {
-            echo "✅ Docker image ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} pushed successfully!"
+            echo '✅ Docker image built and pushed successfully!'
         }
         failure {
-            echo '❌ Build failed!'
+            echo "❌ Build or push failed!"
         }
     }
 }
