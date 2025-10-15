@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "shivay2525/devops"   // Docker Hub repo name
+        DOCKER_IMAGE = "shivay2525/devops"
     }
 
     stages {
@@ -20,25 +20,17 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    // Build Docker image on Windows agent
-                    bat 'docker build -t %DOCKER_IMAGE%:latest .'
-                }
+                bat 'docker build -t shivay2525/devops.'
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        // Login to Docker Hub
-                        bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
-                        
-                        // Retry push in case of network issues
-                        retry(3) {
-                            bat 'docker push %DOCKER_IMAGE%:latest'
-                        }
-                    }
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat '''
+                        docker login -u %DOCKER_USER% -p %DOCKER_PASS%
+                        docker push shivay2525/devops
+                    '''
                 }
             }
         }
@@ -51,7 +43,7 @@ pipeline {
             bat 'docker logout'
         }
         success {
-            echo '✅ Docker image built and pushed successfully!'
+            echo "✅ Docker image built and pushed successfully to Docker Hub!"
         }
         failure {
             echo "❌ Build or push failed!"
