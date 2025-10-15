@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "dhruvaly/project1"   // Docker Hub repo name
+        DOCKER_IMAGE = "shivay2525/devops"   // Docker Hub repo name
     }
 
     stages {
         stage('Checkout') {
             steps {
                 // Checkout from main branch
-                git branch: 'main', url: 'https://github.com/dhruvalyadav/docker.git'
+                git branch: 'main', url: 'https://github.com/Swadhera25/devops.git'
             }
         }
 
