@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "dhruvaly/project1"   // Docker Hub repo name
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout from main branch
+                git branch: 'main', url: 'https://github.com/dhruvalyadav/docker.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image on Windows agent
+                    bat 'docker build -t %DOCKER_IMAGE%:latest .'
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        // Login to Docker Hub
+                        bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                        
+                        // Retry push in case of network issues
+                        retry(3) {
+                            bat 'docker push %DOCKER_IMAGE%:latest'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Docker image built and pushed successfully!'
+        }
+        failure {
+            echo '❌ Build failed!'
+        }
+    }
+}
