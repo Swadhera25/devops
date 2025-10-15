@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "shivay2525/devops"   // Docker Hub repo name
+        // Your Docker Hub username/repository
+        DOCKER_IMAGE = "shivay2525/devops"
     }
 
     stages {
@@ -16,8 +17,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image on Windows agent
-                    bat 'docker build -t %DOCKER_IMAGE%:latest .'
+                    // Build and tag with both 'latest' and the unique build number
+                    // Note the double quotes and ${...} for cross-platform compatibility
+                    bat "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} -t ${env.DOCKER_IMAGE}:latest ."
                 }
             }
         }
@@ -27,11 +29,16 @@ pipeline {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         // Login to Docker Hub
-                        bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                        bat "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
                         
-                        // Retry push in case of network issues
+                        // Push the image with the build number tag
                         retry(3) {
-                            bat 'docker push %DOCKER_IMAGE%:latest'
+                            bat "docker push ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                        }
+
+                        // Push the 'latest' tag
+                        retry(3) {
+                            bat "docker push ${env.DOCKER_IMAGE}:latest"
                         }
                     }
                 }
@@ -40,8 +47,13 @@ pipeline {
     }
 
     post {
+        always {
+            // Good practice: always log out to clean up credentials from the agent
+            echo 'Logging out from Docker Hub...'
+            bat 'docker logout'
+        }
         success {
-            echo '✅ Docker image built and pushed successfully!'
+            echo "✅ Docker image ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} pushed successfully!"
         }
         failure {
             echo '❌ Build failed!'
