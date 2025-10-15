@@ -12,12 +12,6 @@ pipeline {
             }
         }
 
-        stage('Build Java Application') {
-            steps {
-                bat 'mvn clean package -DskipTests'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 bat 'docker build -t shivay2525/devops.'
